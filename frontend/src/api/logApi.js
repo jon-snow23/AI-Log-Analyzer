@@ -1,4 +1,7 @@
-const API_BASE = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api';
+const API_BASE = import.meta.env.VITE_API_BASE_URL
+  || (import.meta.env.DEV
+    ? 'http://localhost:8080/api'
+    : 'https://ai-log-analyzer-api.onrender.com/api');
 
 async function handleResponse(response) {
   if (!response.ok) {
