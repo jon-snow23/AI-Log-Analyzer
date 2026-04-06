@@ -295,7 +295,3 @@ For production-scale log ingestion, large uploads should be processed server-sid
 - Historical comparison across analyses
 - Richer exports and downloadable reports
 - Stronger deployment story for large production logs
-
-## License
-
-Add a license file if you plan to open-source or distribute the project publicly.
