@@ -1,19 +1,32 @@
-# AI Log Analyzer for Production Debugging
+# AI Log Analyzer
 
-A full-stack monorepo for uploading or pasting application logs, parsing them into structured entries, detecting recurring failures, flagging anomalies, and presenting likely root-cause summaries in a dashboard.
+A full-stack log analysis application for uploading or pasting application logs, extracting structured events, surfacing recurring failures, and generating a clear root-cause summary with recommended next steps.
+
+The project is built as a monorepo with a React frontend, a Spring Boot backend, and PostgreSQL for persistence.
+
+## Overview
+
+AI Log Analyzer is designed for production-debugging workflows where raw logs are noisy, repetitive, and difficult to triage quickly. The application ingests plain-text logs, normalizes recurring messages, detects common failure patterns, and presents the result in a dashboard that highlights:
+
+- overall log volume and severity counts
+- dominant recurring errors
+- impacted services
+- detected issues with evidence and recommendations
+- a primary root-cause candidate with confidence scoring
 
 ## Features
 
-- Upload `.log` or `.txt` files for analysis
-- Paste raw logs directly into the UI
+- Upload `.log` and `.txt` files for analysis
+- Paste raw log text directly into the UI
 - Parse common timestamped log formats with fallback handling for unstructured lines
-- Count INFO, WARN, and ERROR entries
-- Surface top recurring errors and top impacted services
-- Detect rule-based anomalies such as repeated timeouts, connection failures, and elevated error ratios
-- Produce a deterministic root-cause summary with confidence scoring and recommended next steps
-- Browse parsed log entries with filters for level, service, and keyword text
-- Export the analysis summary and issue findings as JSON
-- Run the entire stack locally with Docker Compose
+- Count `INFO`, `WARN`, and `ERROR` events
+- Group recurring failures by normalized error message
+- Surface top failing services and most frequent errors
+- Detect rule-based incident patterns such as timeouts, connection failures, auth errors, and repeated failures
+- Generate a deterministic root-cause summary with confidence scoring
+- Browse parsed log entries with level, service, and keyword filters
+- Export the analysis summary and detected findings as JSON
+- Optionally generate AI-powered recommendations for detected issues
 
 ## Architecture
 
@@ -21,58 +34,92 @@ A full-stack monorepo for uploading or pasting application logs, parsing them in
 +----------------------+        +-----------------------+        +------------------+
 | React + Vite UI      | -----> | Spring Boot API       | -----> | PostgreSQL       |
 | Upload / Dashboard   |        | Parser + Analyzer     |        | Analysis storage |
-| Recharts / Filters   | <----- | JPA / REST / Export   | <----- | Log entries      |
+| Charts / Filters     | <----- | JPA / REST / Export   | <----- | Log entries      |
 +----------------------+        +-----------------------+        +------------------+
 ```
 
-Backend layers:
+### Backend Responsibilities
 
-- `controller`: REST endpoints
-- `service`: orchestration for upload, parsing, persistence, and retrieval
-- `repository`: Spring Data JPA repositories
-- `model/entity`: persisted domain objects
-- `dto`: API payloads
-- `parser`: regex-based parsing and normalization
-- `analyzer`: counting, pattern grouping, anomaly detection, and summary generation
-- `rules`: maintainable keyword-based root-cause rules
-- `mapper`: entity to response mapping
-- `exception`: API error handling
+- accept uploaded files or pasted text
+- parse raw log lines into structured entries
+- normalize noisy messages for grouping
+- compute severity counts, service impact, and recurring failures
+- evaluate rule-based root-cause candidates
+- persist analyses, issues, and log entries
+- expose REST endpoints for summaries, issues, entries, and exports
+
+### Frontend Responsibilities
+
+- collect uploaded files and pasted log text
+- trigger analysis requests
+- display summary metrics and charts
+- show root-cause findings and recommended actions
+- browse raw parsed entries with filters and pagination
 
 ## Tech Stack
 
-- Backend: Java 17, Spring Boot 3, Maven, JPA, Validation, Lombok, OpenAPI
-- Frontend: React 18, JavaScript, Vite, Recharts
-- Database: PostgreSQL 16
-- Testing: JUnit 5, Mockito, Spring MVC Test, Vitest, Testing Library
-- Containerization: Docker, Docker Compose
+### Backend
 
-## Project Structure
+- Java 17
+- Spring Boot 3
+- Spring Web
+- Spring Data JPA
+- Bean Validation
+- Maven
+- Lombok
+- springdoc OpenAPI
+
+### Frontend
+
+- React 18
+- Vite
+- React Router
+- Recharts
+- Framer Motion
+
+### Database and Tooling
+
+- PostgreSQL
+- Docker
+- Docker Compose
+- JUnit 5
+- Mockito
+- Vitest
+- Testing Library
+
+## Repository Structure
 
 ```text
 .
 ├── backend
+│   ├── src
+│   └── pom.xml
 ├── frontend
+│   ├── src
+│   ├── public
+│   └── package.json
 ├── sample-logs
 ├── docker-compose.yml
 └── README.md
 ```
 
-## Local Setup
+## Getting Started
 
-### Docker
+### Prerequisites
 
-Run the full stack:
+- Java 17+
+- Node.js 18+ or 20+
+- npm
+- PostgreSQL 16+ if running without Docker
+- Docker and Docker Compose if running the containerized setup
+
+## Running Locally
+
+### Option 1: Docker Compose
+
+Start the full stack:
 
 ```bash
-docker compose up --build
-```
-
-To enable OpenRouter-powered finding recommendations with Docker Compose, set these variables before starting:
-
-```bash
-export AI_ENABLED=true
-export AI_PROVIDER=openrouter
-export OPENROUTER_API_KEY="your_api_key_here"
 docker compose up --build
 ```
 
@@ -82,16 +129,33 @@ Open:
 - Backend API: [http://localhost:8080/api](http://localhost:8080/api)
 - Swagger UI: [http://localhost:8080/swagger-ui.html](http://localhost:8080/swagger-ui.html)
 
-### Without Docker
+To enable AI-powered recommendations with OpenRouter:
 
-Backend:
+```bash
+export AI_ENABLED=true
+export AI_PROVIDER=openrouter
+export OPENROUTER_API_KEY="your_api_key_here"
+docker compose up --build
+```
+
+### Option 2: Run Services Separately
+
+#### Start PostgreSQL
+
+Use a local PostgreSQL instance with these defaults or provide your own values:
+
+- database: `loganalyzer`
+- username: `loganalyzer`
+- password: `loganalyzer`
+
+#### Start the Backend
 
 ```bash
 cd backend
 mvn spring-boot:run
 ```
 
-Frontend:
+#### Start the Frontend
 
 ```bash
 cd frontend
@@ -99,24 +163,37 @@ npm install
 npm run dev
 ```
 
-PostgreSQL defaults:
+## Environment Variables
 
-- DB: `loganalyzer`
-- User: `loganalyzer`
-- Password: `loganalyzer`
+The backend reads the following environment variables:
 
-The backend reads these environment variables:
+```env
+SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/loganalyzer
+SPRING_DATASOURCE_USERNAME=loganalyzer
+SPRING_DATASOURCE_PASSWORD=loganalyzer
+SERVER_PORT=8080
+AI_ENABLED=false
+AI_PROVIDER=openrouter
+OPENROUTER_API_KEY=
+OPENROUTER_MODEL=openrouter/free
+OPENROUTER_APP_NAME=AI Log Analyzer
+GEMINI_API_KEY=
+GEMINI_MODEL=gemini-2.0-flash
+```
 
-- `SPRING_DATASOURCE_URL`
-- `SPRING_DATASOURCE_USERNAME`
-- `SPRING_DATASOURCE_PASSWORD`
-- `SERVER_PORT`
-- `AI_ENABLED`
-- `AI_PROVIDER`
-- `OPENROUTER_API_KEY`
-- `OPENROUTER_MODEL`
+The frontend uses:
+
+```env
+VITE_API_BASE_URL=http://localhost:8080/api
+```
 
 ## API Endpoints
+
+### Health
+
+- `GET /api/health`
+
+### Analysis
 
 - `POST /api/logs/upload`
 - `POST /api/logs/analyze-text`
@@ -124,9 +201,8 @@ The backend reads these environment variables:
 - `GET /api/logs/{analysisId}/issues`
 - `GET /api/logs/{analysisId}/entries?level=&service=&search=&page=0&size=25`
 - `GET /api/logs/{analysisId}/export`
-- `GET /api/health`
 
-Example analyze-text request:
+### Example: Analyze Raw Log Text
 
 ```bash
 curl -X POST http://localhost:8080/api/logs/analyze-text \
@@ -134,55 +210,53 @@ curl -X POST http://localhost:8080/api/logs/analyze-text \
   -d '{"rawLogs":"2026-04-04 10:01:15 ERROR PaymentService - Timeout while connecting to payment provider"}'
 ```
 
-Example upload request:
+### Example: Upload a File
 
 ```bash
 curl -X POST http://localhost:8080/api/logs/upload \
   -F "file=@sample-logs/payment-timeout.log"
 ```
 
-## Sample Incidents
+## Sample Logs
 
-Bundled sample logs:
+The repository includes example incidents in [sample-logs](/Users/vipinnirmal/Desktop/log_reader/sample-logs):
 
-- `sample-logs/payment-timeout.log`
-- `sample-logs/db-connection-failure.log`
-- `sample-logs/mixed-microservices-failure.log`
+- `payment-timeout.log`
+- `db-connection-failure.log`
+- `mixed-microservices-failure.log`
 
-The frontend includes quick-load buttons for these incidents.
+These are useful for quick demos, local testing, and verifying parser behavior.
 
-## How Root Cause Detection Works
+## How Root-Cause Detection Works
 
 The analyzer is deterministic and rule-based.
 
-1. Each line is parsed into a structured entry where possible.
-2. Messages are normalized by removing volatile numbers and request identifiers to improve grouping.
-3. The analyzer counts log levels, top services, and recurring normalized error messages.
-4. Root-cause rules scan for incident signatures such as `timeout`, `connection refused`, `nullpointerexception`, `outofmemoryerror`, `too many connections`, `401`, `403`, `access denied`, and `broken pipe`.
-5. Confidence increases when the same pattern appears repeatedly.
-6. Additional anomaly rules raise issues for elevated overall error ratios and repeated identical failures.
-7. The highest-confidence candidate becomes the primary root-cause summary, while all candidates become findings with severity and recommendations.
-
-## Dashboard Walkthrough
-
-1. Open the frontend and load a bundled sample log or upload a file.
-2. The summary cards show total logs plus INFO, WARN, and ERROR counts.
-3. The root cause card highlights the most likely incident driver and confidence.
-4. The findings panel lists triggered issues, severity, evidence, and next steps.
-5. Charts show recurring error patterns and impacted services.
-6. The explorer table supports level, service, and keyword filtering with pagination.
-7. Use Export JSON to download the backend export payload.
+1. Raw log lines are parsed into structured entries where possible.
+2. Messages are normalized to reduce noise from IDs and volatile values.
+3. The system computes severity counts, dominant services, and recurring normalized errors.
+4. Root-cause rules scan for known failure signatures such as:
+   - timeout
+   - connection refused
+   - null pointer exceptions
+   - out of memory
+   - too many connections
+   - 401 and 403 responses
+   - access denied
+   - broken pipe
+5. Confidence increases when patterns repeat frequently.
+6. Additional anomaly rules flag elevated error ratios and repeated identical failures.
+7. The highest-confidence candidate becomes the primary root-cause summary.
 
 ## Testing
 
-Backend:
+### Backend
 
 ```bash
 cd backend
 mvn test
 ```
 
-Frontend:
+### Frontend
 
 ```bash
 cd frontend
@@ -190,27 +264,38 @@ npm install
 npm test
 ```
 
-## Screenshots
+## Deployment Notes
 
-Placeholder screenshots can be added later:
+This project can be deployed in multiple ways depending on the expected traffic and upload size.
 
-- `docs/screenshots/upload-dashboard.png`
-- `docs/screenshots/findings-panel.png`
+### Recommended Split
 
-## Assumptions and Limitations
+- Frontend: Cloudflare Pages or Cloudflare Workers static hosting
+- Backend: Java host such as Render, Oracle Cloud VM, Railway, or another VM/container platform
+- Database: PostgreSQL, such as Neon or a self-managed instance
 
-- The MVP is optimized for plain-text logs, not multiline stack trace reconstruction.
-- JSON logs are not parsed specially yet.
-- Root-cause detection is deterministic and explainable, not LLM-based.
-- Unstructured lines are still stored and searchable, but some fields may remain null or inferred.
-- Current sample files are focused on common production incidents rather than exhaustive formats.
-- Authentication is intentionally omitted for local MVP simplicity.
+### Important Note on Large File Uploads
 
-## Future Improvements
+For production-scale log ingestion, large uploads should be processed server-side through a proper multipart upload flow with asynchronous processing or background jobs. Free-tier platforms with cold starts can be limiting for large-file uploads.
 
-- JSON log parsing and multiline stack trace stitching
-- CSV export and richer downloadable incident reports
-- Timeline charts for error volume over time
-- Historical trend comparisons across uploads
-- Deployment marker ingestion for change correlation
-- Optional LLM-generated narrative incident explanation built on top of the rule-based output
+## Limitations
+
+- Optimized for plain-text logs rather than fully structured JSON logs
+- Multiline stack traces are not reconstructed yet
+- Authentication and multi-user isolation are not implemented
+- Root-cause detection is rule-based and explainable, not a full incident-correlation engine
+- Very large log files may require a more robust upload and processing architecture
+
+## Roadmap
+
+- JSON log support
+- Multiline stack-trace stitching
+- Better large-file upload architecture
+- Async processing and job polling
+- Historical comparison across analyses
+- Richer exports and downloadable reports
+- Stronger deployment story for large production logs
+
+## License
+
+Add a license file if you plan to open-source or distribute the project publicly.
