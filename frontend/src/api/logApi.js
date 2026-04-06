@@ -23,11 +23,13 @@ export async function analyzeText(rawLogs) {
 }
 
 export async function uploadFile(file) {
-  const formData = new FormData();
-  formData.append('file', file);
-  const response = await fetch(`${API_BASE}/logs/upload`, {
+  const rawLogs = await file.text();
+  const response = await fetch(`${API_BASE}/logs/analyze-text`, {
     method: 'POST',
-    body: formData
+    headers: {
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({ rawLogs })
   });
   return handleResponse(response);
 }
